@@ -2,8 +2,6 @@
 //  im_hybrid_demoApp.swift
 //  im-hybrid-demo
 //
-//  Created by Personal on 19/11/2024.
-//
 
 import SwiftUI
 
