@@ -43,7 +43,7 @@ struct ContentView: View {
                     ZStack {
                         Circle()
                             .fill(Color.blue) // Background color of the circle
-                            .frame(width: 100, height: 100) // Circle size
+                            .frame(width: 70, height: 70) // Circle size
                         
                         Text("JD")
                             .font(.largeTitle) // Font size for the text

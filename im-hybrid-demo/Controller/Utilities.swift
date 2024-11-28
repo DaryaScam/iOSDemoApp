@@ -169,11 +169,27 @@ func hexToBytes(_ hex: String) throws -> [UInt8] {
     return bytes
 }
 
-extension Data {
-    func base64URLEncodedString() -> String {
-        return self.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "") // Remove padding
+func uint8ArrayToUUIDT(_ bytes: [UInt8]) throws -> uuid_t {
+    // Ensure the array has exactly 16 elements
+    guard bytes.count == 16 else {
+        throw DecodingError.invalidData("UUID byte array must have exactly 16 elements.")
     }
+
+    // Map the array to a uuid_t tuple
+    let uuidTuple: uuid_t = (
+        bytes[0], bytes[1], bytes[2], bytes[3],
+        bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11],
+        bytes[12], bytes[13], bytes[14], bytes[15]
+    )
+
+    return uuidTuple
+}
+
+func localizedDateTimeString(from date: Date, dateStyle: DateFormatter.Style = .medium, timeStyle: DateFormatter.Style = .medium) -> String {
+    let dateFormatter = DateFormatter()
+    dateFormatter.dateStyle = dateStyle
+    dateFormatter.timeStyle = timeStyle
+    dateFormatter.locale = Locale.current // Use the current locale
+    return dateFormatter.string(from: date)
 }
