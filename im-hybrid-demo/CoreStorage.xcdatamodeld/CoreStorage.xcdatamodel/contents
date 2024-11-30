@@ -6,14 +6,14 @@
         <attribute name="created_at" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="cred_id" attributeType="String"/>
         <attribute name="is_disabled" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
-        <attribute name="public_key_hex" attributeType="String"/>
+        <attribute name="public_key" attributeType="String"/>
         <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
     </entity>
     <entity name="CSSession" representedClassName="CSSession" syncable="YES" codeGenerationType="class">
         <attribute name="access_token" attributeType="String"/>
         <attribute name="created_at" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="device_name" attributeType="String"/>
-        <attribute name="last_accessd" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="last_accessed" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="uuid" attributeType="UUID" usesScalarValueType="NO"/>
     </entity>
     <entity name="CSUser" representedClassName="CSUser" syncable="YES" codeGenerationType="class">

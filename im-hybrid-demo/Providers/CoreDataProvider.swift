@@ -102,9 +102,16 @@ class CoreDataProvider {
         }
     }
     
-    func saveSession(session: CSSession) throws {
+    func newSession(deviceName: String, accessToken: String) throws {
+        let newSession = CSSession(context: viewContext)
+        newSession.uuid = UUID()
+        newSession.created_at = Date()
+        newSession.last_accessed = Date()
+        newSession.device_name = deviceName
+        newSession.access_token = accessToken
+        
         do {
-            viewContext.insert(session)
+            viewContext.insert(newSession)
             try saveContext()
         } catch {
             throw error
@@ -142,14 +149,14 @@ class CoreDataProvider {
         }
     }
     
-    func newPasskey(credId: String, counter: Int32, publicKeyHex: String, aaguid: UUID) throws -> CSPasskey {
+    func newPasskey(credId: String, counter: Int32, publicKeyB64Url: String, aaguid: UUID) throws -> CSPasskey {
         let newPasskey = CSPasskey(context: viewContext)
         newPasskey.uuid = UUID()
         newPasskey.counter = counter
         newPasskey.cred_id = credId
         newPasskey.created_at = Date()
         newPasskey.aaguid = aaguid
-        newPasskey.public_key_hex = publicKeyHex
+        newPasskey.public_key = publicKeyB64Url
         
         do {
             viewContext.insert(newPasskey)

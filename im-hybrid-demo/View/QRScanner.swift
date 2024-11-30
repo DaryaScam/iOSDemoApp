@@ -64,19 +64,13 @@ struct ReadQRView: View {
     @State private var cameraPermission: Permission = .idle
     @State private var errorMessage: String = ""
     @State private var showError: Bool = false
-    
     @StateObject private var qrDelegate = QRScannerDelegate()
-        
+
     var body: some View {
         ZStack {
             VStack {
                 Text("Place QR code inside the area")
                     .font(.title3)
-                Text("Scanning will start automatically")
-                    .font(.callout)
-                    .foregroundStyle(.gray)
-                
-//                Spacer(minLength: 0)
                 
                 GeometryReader {
                     let size = $0.size
@@ -92,7 +86,8 @@ struct ReadQRView: View {
                     .frame(width: size.width, height: size.width)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(45)
+                .padding(.horizontal, 45)
+                .padding(.vertical, 20)
             }
             .padding(.vertical, 40)
         }
@@ -110,11 +105,7 @@ struct ReadQRView: View {
             }
         }
         .onChange(of: qrDelegate.scannedCode) { newValue in
-            if let code = newValue {
-                resultCode = code
-        
-                session.stopRunning()
-            }
+            resultCode = newValue ?? ""
         }
     }
     

@@ -88,7 +88,7 @@ struct ManagePasskeys: View {
                                     do {
                                         print("Passkey registered successfully")
                                         let attPasskeyInfo = try result.get()
-                                        registerPasskey = try cdp!.newPasskey(credId: attPasskeyInfo.id, counter: Int32(attPasskeyInfo.counter), publicKeyHex: attPasskeyInfo.publicKey, aaguid: attPasskeyInfo.aaguid)
+                                        registerPasskey = try cdp!.newPasskey(credId: attPasskeyInfo.id, counter: Int32(attPasskeyInfo.counter), publicKeyB64Url: attPasskeyInfo.publicKey, aaguid: attPasskeyInfo.aaguid)
                                     } catch {
                                         flowError = error
                                         showError = true

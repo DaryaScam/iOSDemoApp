@@ -4,68 +4,7 @@
 //
 
 import Foundation
-import Security
-import CommonCrypto
 import SwiftCBOR
-
-enum RandomByteError: Error {
-    case generationFailed
-}
-
-func generateRandomBytes(_ length: Int) throws -> Data {
-    var bytes = [UInt8](repeating: 0, count: length)
-    let status = SecRandomCopyBytes(kSecRandomDefault, length, &bytes)
-    
-    guard status == errSecSuccess else {
-        throw RandomByteError.generationFailed
-    }
-    
-    return Data(bytes)
-}
-
-
-let blockSize = kCCBlockSizeAES128 // AES block size is always 128 bits (16 bytes)
-
-/// Encrypts a single block of data using AES-256 in ECB mode.
-/// - Parameters:
-///   - data: 16-byte plaintext block (must match block size).
-///   - key: 32-byte AES key (256 bits).
-/// - Returns: Encrypted 16-byte block.
-func encryptBlock(data: Data, key: Data) throws -> Data {
-    guard data.count == blockSize else {
-        throw NSError(domain: "Invalid block size", code: -1, userInfo: nil)
-    }
-    guard key.count == kCCKeySizeAES256 else {
-        throw NSError(domain: "Invalid key size", code: -1, userInfo: nil)
-    }
-
-    // Allocate output buffer manually to avoid overlapping access
-    var outputBuffer = [UInt8](repeating: 0, count: blockSize)
-    var bytesEncrypted = 0
-
-    let status = data.withUnsafeBytes { plaintextBytes in
-        key.withUnsafeBytes { keyBytes in
-            CCCrypt(
-                CCOperation(kCCEncrypt),
-                CCAlgorithm(kCCAlgorithmAES),
-                CCOptions(kCCOptionECBMode), // ECB Mode (no IV)
-                keyBytes.baseAddress, key.count,
-                nil, // No IV required for ECB
-                plaintextBytes.baseAddress, data.count,
-                &outputBuffer, outputBuffer.count,
-                &bytesEncrypted
-            )
-        }
-    }
-
-    guard status == kCCSuccess else {
-        throw NSError(domain: "Encryption failed", code: Int(status), userInfo: nil)
-    }
-
-    // Convert the result back to Data
-    return Data(outputBuffer.prefix(bytesEncrypted))
-}
-
 
 enum DecodingError: Error {
     case invalidData(String)
