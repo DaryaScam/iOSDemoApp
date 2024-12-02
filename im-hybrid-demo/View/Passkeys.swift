@@ -99,7 +99,7 @@ struct ManagePasskeys: View {
                                 }
                             }
                         } else {
-                            flowError = PasskeysControllerError.noKeyWindowsAvailable("No key windows available")
+                            flowError = PasskeyError.noKeyWindowsAvailable("No key windows available")
                             showError = true
                         }
                     } catch {

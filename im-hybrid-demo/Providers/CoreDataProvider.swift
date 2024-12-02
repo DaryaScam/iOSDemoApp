@@ -12,7 +12,7 @@ enum CoreDataProviderError: Error {
 }
 
 
-class CoreDataProvider {
+class CoreDataProvider: ObservableObject {
     let persistentContainer: NSPersistentContainer
     
     var viewContext: NSManagedObjectContext {

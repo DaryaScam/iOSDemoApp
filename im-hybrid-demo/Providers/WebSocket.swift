@@ -89,7 +89,7 @@ class WebSocketProvider {
     }
 
     func awaitForMessage(
-        timeout: TimeInterval = 5,
+        timeout: TimeInterval = 5000,
         messageType: WSMessageType
     ) async throws -> WSMessage {
         return try await withCheckedThrowingContinuation { continuation in
@@ -182,5 +182,9 @@ class WebSocketProvider {
                 }
             }
         }
+    }
+    
+    func close() async {
+        self.ws?.cancel()
     }
 }

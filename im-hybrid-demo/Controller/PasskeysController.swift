@@ -12,17 +12,6 @@ import SwiftCBOR
 // Truthfully stolen from https://docs-assets.developer.apple.com/published/0dc46a3bfa/ConnectingToAServiceWithPasskeys.zip
 // https://web.daryascam.info/.well-known/apple-app-site-association
 
-enum PasskeysControllerError: Error {
-    case missingAuthData
-    case missingPublicKey
-    case invalidPublicKey(String)
-    case unsupportedAlgorithm(String)
-    case noKeyWindowsAvailable(String)
-    case unexpectedError(String)
-    case requestCancelled
-    case unauthorized(String)
-}
-
 struct PasskeyObject: Codable {
     let id: String
     let publicKey: String
@@ -50,7 +39,7 @@ func decodeAttestationResult(_ credential: ASAuthorizationPlatformPublicKeyCrede
         let attObject: [CtapClientAttKeys: Any] = try decodeCborToMap(bytes: [UInt8](credential.rawAttestationObject!), keyType: CtapClientAttKeys.self)
         
         if attObject[CtapClientAttKeys.authData] == nil {
-            throw PasskeysControllerError.missingAuthData
+            throw PasskeyError.missingAuthData
         }
         
         let authData = try AuthData(attObject[CtapClientAttKeys.authData] as! [UInt8])
@@ -140,7 +129,7 @@ class PasskeysController: NSObject, ASAuthorizationControllerPresentationContext
                 if let decodedAttResp = decodedAttResp {
                     createPasskeyResult?(.success(decodedAttResp))
                 } else {
-                    getErrorCallback()(PasskeysControllerError.missingAuthData)
+                    getErrorCallback()(PasskeyError.missingAuthData)
                 }
             } catch {
                 print("Error")
@@ -159,7 +148,7 @@ class PasskeysController: NSObject, ASAuthorizationControllerPresentationContext
 //            didFinishSignIn()
         default:
             if createPasskeyResult != nil {
-                getErrorCallback()(PasskeysControllerError.missingAuthData)
+                getErrorCallback()(PasskeyError.missingAuthData)
             } else {
                 fatalError("Received unknown authorization type.")
             }
@@ -173,9 +162,9 @@ class PasskeysController: NSObject, ASAuthorizationControllerPresentationContext
         }
 
         if authorizationError.code == .canceled {
-            getErrorCallback()(PasskeysControllerError.requestCancelled)
+            getErrorCallback()(PasskeyError.requestCancelled)
         } else {
-            getErrorCallback()(PasskeysControllerError.unexpectedError(error.localizedDescription))
+            getErrorCallback()(PasskeyError.unexpectedError(error.localizedDescription))
         }
     }
 

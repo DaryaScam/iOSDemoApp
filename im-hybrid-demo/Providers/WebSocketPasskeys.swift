@@ -51,6 +51,15 @@ enum PasskeyError: Error {
     case invalidOrigin(String)
     case invalidOperation(String)
     case invalidSignature
+    case missingAuthData
+    case missingPublicKey
+    case invalidPublicKey(String)
+    case unsupportedAlgorithm(String)
+    case noKeyWindowsAvailable(String)
+    case unexpectedError(String)
+    case requestCancelled
+    case unauthorized(String)
+    case userConsentDenied(String)
 }
 
 struct AssertionValidationResult {

@@ -56,9 +56,10 @@ struct CameraView: UIViewRepresentable {
 
 struct ReadQRView: View {
     @Binding var resultCode: String
+    @Binding var isScanning: Bool
     
-    @State private var isScanning: Bool = false
     @State private var session: AVCaptureSession = .init()
+    
     
     @State private var qrOutput: AVCaptureMetadataOutput = .init()
     @State private var cameraPermission: Permission = .idle
@@ -106,6 +107,13 @@ struct ReadQRView: View {
         }
         .onChange(of: qrDelegate.scannedCode) { newValue in
             resultCode = newValue ?? ""
+        }
+        .onChange(of: isScanning) {
+            if $0 {
+                session.startRunning()
+            } else {
+                session.stopRunning()
+            }
         }
     }
     

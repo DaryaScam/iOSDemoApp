@@ -132,3 +132,42 @@ func localizedDateTimeString(from date: Date, dateStyle: DateFormatter.Style = .
     dateFormatter.locale = Locale.current // Use the current locale
     return dateFormatter.string(from: date)
 }
+
+
+final class ConsentManager: ObservableObject {
+    @Published var userConsented: Bool? = nil
+
+    func waitForUserConsent() async throws -> Bool {
+        try await withCheckedThrowingContinuation { continuation in
+            var completed = false
+            let cancellable = $userConsented
+                .dropFirst() // Skip the initial value
+                .compactMap { $0 } // Ignore nil values
+                .first()
+                .sink { consent in
+                    continuation.resume(returning: consent)
+                    completed = true
+                }
+
+            Task {
+                try? await Task.sleep(nanoseconds: 30_000_000_000) // Timeout after 30 seconds
+                
+                if !completed {
+                    continuation.resume(throwing: NSError(domain: "Timeout", code: -1))
+                    cancellable.cancel()
+                }
+            }
+        }
+    }
+}
+
+func waitTime(_ milliseconds: Int, completion: @escaping (Result<Void, Never>) -> Void) {
+    guard milliseconds > 0 else {
+        completion(.success(())) // Return immediately for non-positive time
+        return
+    }
+
+    DispatchQueue.global().asyncAfter(deadline: .now() + .milliseconds(milliseconds)) {
+        completion(.success(())) // Call completion after the delay
+    }
+}
