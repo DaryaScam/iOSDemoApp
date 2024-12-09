@@ -5,6 +5,7 @@
 
 import SwiftUI
 import CryptoKit
+import Foundation
 
 enum SettingMenus: String {
     case devices = "Devices"
@@ -76,6 +77,18 @@ struct ContentView: View {
                         }) {
                             Text("Passkeys")
                             
+                        }
+                        Button("TestDecode") {
+                            do {
+                                let payloadHex = "a6005821034de59e86ee40a6ddf569fb6ebf5e94b33576b5c95feec0629f0b87902b260764015050d7aaaaa247c4b5e7bf37fc5e7cf4b00201031a6754ccde04f405626761"
+                                
+                                let challengeBytes = try payloadHex.decodeHex()
+                                let resultMap: [CborKeys: Any] = try decodeCborToMap(bytes: challengeBytes, keyType: CborKeys.self)
+                                print(resultMap)
+                            } catch {
+                                print("Error")
+                                print(error)
+                            }
                         }
                     }
                 }

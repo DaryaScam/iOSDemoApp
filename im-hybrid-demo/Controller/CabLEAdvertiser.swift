@@ -47,20 +47,33 @@ class BluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerD
         }
     }
     
+    func peripheralManagerDidStartAdvertising(_ peripheral: CBPeripheralManager, error: Error?) {
+        if let error = error {
+            print("Failed to start advertising: \(error.localizedDescription)")
+        } else {
+            print("Successfully started advertising.")
+        }
+    }
+    
     func startAdvertising(_ serviceData: [UInt8]) {
         guard peripheralManager.state == .poweredOn else {
-            print("Peripheral manager is not powered on.")
+            print("Peripheral manager is not powered on. State: \(peripheralManager.state)")
             return
         }
-        
-        let serviceUuid = CBUUID(string: "0000fff9-0000-1000-8000-00805f9b34fb")
-        let advertisementData = [
-            CBAdvertisementDataServiceUUIDsKey: [serviceUuid],
-            CBAdvertisementDataLocalNameKey: "MyPeripheral",
-            CBAdvertisementDataServiceDataKey: [
-                serviceUuid:serviceData
-            ]
+                
+        // Hack to advertise iOS service data
+        let iOSServiceDataHack = Data([0xf1, 0xd0, 0x00]) + Data(serviceData)
+        let restOfData = iOSServiceDataHack.dropFirst(16)
+    
 
+        // Create CBUUIDs from the parts
+        let sUuid1 = CBUUID(data: iOSServiceDataHack.prefix(16))
+        let sUuid2 = CBUUID(data: restOfData.prefix(4))
+        let sUuid3 = CBUUID(data: restOfData.dropFirst(4))
+
+        let advertisementData = [
+            CBAdvertisementDataLocalNameKey: "Hybrid-ish Device",
+            CBAdvertisementDataServiceUUIDsKey: [sUuid1, sUuid2, sUuid3]
         ] as [String : Any]
         
         peripheralManager.startAdvertising(advertisementData)
@@ -68,6 +81,7 @@ class BluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerD
     }
     
     func stopAdvertising() {
+        peripheralManager.removeAllServices()
         peripheralManager.stopAdvertising()
         isAdvertising = false
     }

@@ -8,7 +8,7 @@ import SwiftCBOR
 
 enum DecodingError: Error {
     case invalidData(String)
-    case invalidKeyType
+    case invalidKeyType(String)
 }
 
 func cborNegative(_ value: Int) -> Int {
@@ -20,36 +20,46 @@ func decodeCborToMap<Key: RawRepresentable>(
     keyType: Key.Type
 ) throws -> [Key: Any] where Key.RawValue: Hashable {
     // Decode the CBOR bytes
+    
+    let tryDecodedCbor = try? CBOR.decode(bytes)
+    print(tryDecodedCbor)
     guard let decodedCbor = try? CBOR.decode(bytes),
           case let CBOR.map(map) = decodedCbor else {
         throw DecodingError.invalidData("Decoded data is not a CBOR map.")
     }
     
+    if Key.RawValue.self == UInt.self {
+        throw DecodingError.invalidData("Uint enums are not supported")
+    }
+
     var resultMap: [Key: Any] = [:]
     
     // Iterate over the CBOR map
     for (key, value) in map {
         var keyId: Key?
-
-//        print(key)
-
+        
         // Try decoding the key as different CBOR types
         switch key {
         case let CBOR.utf8String(keyString):
             if let rawKey = keyString as? Key.RawValue, let castedKey = Key(rawValue: rawKey) {
                 keyId = castedKey
+            } else {
+                throw DecodingError.invalidKeyType("Failed to decode key \(keyString).")
             }
         case let CBOR.negativeInt(keyNegative):
             if let rawKey = cborNegative(Int(keyNegative))  as? Key.RawValue, let castedKey = Key(rawValue: rawKey) {
                 keyId = castedKey
+            } else {
+                throw DecodingError.invalidKeyType("Failed to decode key \(keyNegative).")
             }
         case let CBOR.unsignedInt(keyNumber):
             if let rawKey = Int(keyNumber) as? Key.RawValue, let castedKey = Key(rawValue: rawKey) {
                 keyId = castedKey
+            } else {
+                throw DecodingError.invalidKeyType("Failed to decode key \(keyNumber).")
             }
         default:
-            print("Key \(key) has an unknown type. Skipping.")
-            throw DecodingError.invalidKeyType
+            throw DecodingError.invalidKeyType("Key \(key) is not a valid key type.")
         }
         
         
@@ -76,36 +86,6 @@ func decodeCborToMap<Key: RawRepresentable>(
     }
     
     return resultMap
-}
-
-
-func hexToBytes(_ hex: String) throws -> [UInt8] {
-    var hexString = hex
-    
-    // Remove "0x" prefix if present
-    if hexString.hasPrefix("0x") {
-        hexString = String(hexString.dropFirst(2))
-    }
-    
-    // Ensure the hex string has an even number of characters
-    guard hexString.count % 2 == 0 else {
-        throw DecodingError.invalidData("Hex string must have an even number of characters.")
-    }
-    
-    // Convert hex string to byte array
-    var bytes: [UInt8] = []
-    var index = hexString.startIndex
-    while index < hexString.endIndex {
-        let nextIndex = hexString.index(index, offsetBy: 2)
-        let byteString = hexString[index..<nextIndex]
-        guard let byte = UInt8(byteString, radix: 16) else {
-            throw DecodingError.invalidData("Invalid hex character sequence: \(byteString)")
-        }
-        bytes.append(byte)
-        index = nextIndex
-    }
-    
-    return bytes
 }
 
 func uint8ArrayToUUIDT(_ bytes: [UInt8]) throws -> uuid_t {

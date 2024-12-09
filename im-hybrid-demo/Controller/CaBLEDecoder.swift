@@ -20,7 +20,7 @@ import CryptoKit
 // 47561829615534850
 // 109321447142660
 
-enum CborKeys: UInt {
+enum CborKeys: Int {
     case publicKey = 0
     case secret = 1
     case numberOfTunnels = 2
@@ -51,7 +51,7 @@ struct HybridChallenge {
 enum CaBLEError: Error {
     case missingPrefix
     case failedToParseUint64
-    case missingRequiredKey
+    case missingRequiredKey(String)
     case wrongFidoMode
     case badRequest
 }
@@ -59,12 +59,10 @@ enum CaBLEError: Error {
 
 func DecodeChallengeBytesToStruct(_ challengeBytes: [UInt8]) throws -> HybridChallenge {
     do {
-        
         let resultMap: [CborKeys: Any] = try decodeCborToMap(bytes: challengeBytes, keyType: CborKeys.self)
-        
         for key in requiredKeys {
             if resultMap[key] == nil {
-                throw CaBLEError.missingRequiredKey
+                throw CaBLEError.missingRequiredKey("Key \(key) is missing.")
             }
         }
         
@@ -135,7 +133,7 @@ func DecodeCabLEChallenge(_ qrChallenge: String) throws -> HybridChallenge {
         rawBuffer = rawBuffer + buffClean
     }
     
-    
+    print(rawBuffer.map { String(format: "%02x", $0) }.joined())
     do {
         return try DecodeChallengeBytesToStruct(rawBuffer)
     } catch {

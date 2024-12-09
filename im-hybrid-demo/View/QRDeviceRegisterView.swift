@@ -10,7 +10,7 @@ struct QRDevicesRegisterView: View {
     @State private var qrresult = ""
     @State private var qrIsScanning = true
     
-//    private var bleManager = BluetoothManager()
+    private var bleManager: BluetoothManager = BluetoothManager()
     
     @State private var ws: WebSocketProvider?
     
@@ -45,6 +45,7 @@ struct QRDevicesRegisterView: View {
     }
     
     func dismiss() {
+        self.bleManager.stopAdvertising()
         waitTime(1500) { _ in
             showPopup = false
         }
@@ -61,11 +62,16 @@ struct QRDevicesRegisterView: View {
                     stopQR()
                     
                     if qrresult.starts(with: "FIDO:/") {
-                        // Hybrid flow [TODO]
-                        let challengeinst = try DecodeCabLEChallenge($0)
-                        let advertisingData = try GenerateAdvertisingData(challengeinst)
-
-    //                    bleManager.startAdvertising(advertisingData)
+                        Task {
+                            // Hybrid flow [TODO]
+                            let challengeinst = try DecodeCabLEChallenge(qrresult)
+                            let advertisingData = try GenerateAdvertisingData(challengeinst)
+                            
+                            
+                            self.bleManager.stopAdvertising()
+                            self.bleManager.startAdvertising(advertisingData)
+                        }
+  
                     } else {
                         print("Scanned code: \(qrresult)")
                                                                 
@@ -99,10 +105,10 @@ struct QRDevicesRegisterView: View {
                                  */
                                 let allowList = [try cdp.getFirstActivePasskey()!.cred_id!]
                                 let authChallenge = PasskeyAuthInitChallenge(
-                                    challenge: try generateRandomBytes(32).base64URLEncodedString(),
+                                    challenge: try generateRandomBytes(32).encodeToBase64Url(),
                                     allowCredIds: allowList,
                                     rpId: ApplicationConfig.rpId,
-                                    kexM: kexM.publicKey.base64URLEncodedString()
+                                    kexM: kexM.publicKey.encodeToBase64Url()
                                 )
                                 
                                 let authChallengeData = try JSONEncoder().encode(authChallenge)
@@ -150,8 +156,7 @@ struct QRDevicesRegisterView: View {
                                                                                                                                 
                                 let newToken = try generateRandomBytes(16)
                                 let encryptedToken = try encryptAesGcm(data: newToken, key: sessionSecret)
-                                print("Encrypted token: \(newToken.map { String(format: "%02x", $0) }.joined())")
-                                let ackMessage = PasskeyAck(encryptedAccessToken: encryptedToken.base64URLEncodedString())
+                                let ackMessage = PasskeyAck(encryptedAccessToken: encryptedToken.encodeToBase64Url())
                                 
                                 let ackMessageData = try JSONEncoder().encode(ackMessage)
                                 let ackMessageWrapper = WSMessage(type: .message, data: String(data: ackMessageData, encoding: .utf8))
@@ -183,6 +188,7 @@ struct QRDevicesRegisterView: View {
                     
                     dismiss()
                 }
+                
             }
             .sheet(isPresented: $showPopup) {
                 VStack {
@@ -227,5 +233,9 @@ struct QRDevicesRegisterView: View {
                 .presentationDetents([ .fraction(0.4)])
                 .padding(20)
             }
+            .onDisappear {
+                self.dismiss()
+            }
+
     }
 }

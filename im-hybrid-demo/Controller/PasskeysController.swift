@@ -21,7 +21,7 @@ struct PasskeyObject: Codable {
     
     init(id: String, publicKey: [UInt8], counter: UInt32, aaguid: UUID) {
         self.id = id
-        self.publicKey = Data(publicKey).base64URLEncodedString()
+        self.publicKey = Data(publicKey).encodeToBase64Url()
         self.counter = counter
         self.timestamp = Date()
         self.aaguid = aaguid
@@ -31,7 +31,7 @@ struct PasskeyObject: Codable {
 func decodeAttestationResult(_ credential: ASAuthorizationPlatformPublicKeyCredentialRegistration) throws -> PasskeyObject? {
     do {
         // Extract data
-        let id = credential.credentialID.base64URLEncodedString()
+        let id = credential.credentialID.encodeToBase64Url()
         
         // Check origin, challenge, and rpid
         let clientDataJSON = try JSONDecoder().decode(ClientDataJSON.self, from: credential.rawClientDataJSON)
