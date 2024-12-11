@@ -2,18 +2,21 @@
 //  WebSocket.swift
 //  im-hybrid-demo
 //
-//  Created by Personal on 28/11/2024.
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
 //
 
 import Foundation
 
 enum WebSocketError: Error {
     case invalidURL
-    case invalidData
+    case invalidData(String)
     case errorSendingData(Error)
     case wsError(wscode: Int, reason: String)
     case timeout
     case invalidResponse
+    case alreadyInitialized
+    
     case unexpectedMessageType
     case invalidMessageFormat
     case unknownMessageType
@@ -22,7 +25,8 @@ enum WebSocketError: Error {
 enum WSMessageType: String, Codable {
     case helloClient = "hello-client"
     case helloMessenger = "hello-messenger"
-    case channelReady = "channel-ready"
+    case channelReady = "channel-ready" // WebSocketOnly
+    case hybridTunnelReady = "hybrid-tunnel-ready"
     
     case message = "message"
 
@@ -54,7 +58,17 @@ class WebSocketProvider {
 
         self.ws = URLSession.shared.webSocketTask(with: wsUrl)
         self.ws?.resume() // Start the WebSocket connection
-
+        
+        self.channelStatus = .hybridTunnelReady
+            
+        print("WebSocket connection raw tunnel ready")
+    }
+    
+    func initWebSessionChannel() async throws {
+        if self.channelStatus == .hybridTunnelReady {
+            throw WebSocketError.alreadyInitialized
+        }
+        
         // Send initial helloClient message
         let helloMessage = WSMessage(type: .helloMessenger, data: nil)
         try await self.send(message: helloMessage)
@@ -92,11 +106,17 @@ class WebSocketProvider {
         timeout: TimeInterval = 5000,
         messageType: WSMessageType
     ) async throws -> WSMessage {
+        let rawMessage: String = try await awaitForRawMessage()
+        let message = try JSONDecoder().decode(WSMessage.self, from: rawMessage.data(using: .utf8)!)
+        return message
+    }
+    
+    func awaitForRawMessage<T: Decodable>(
+        timeout: TimeInterval = 5000
+    ) async throws -> T {
         return try await withCheckedThrowingContinuation { continuation in
-            // Track whether the continuation has been resumed
             var isContinuationResumed = false
 
-            // Create a DispatchWorkItem for timeout handling
             let timeoutWorkItem = DispatchWorkItem {
                 if !isContinuationResumed {
                     isContinuationResumed = true
@@ -104,47 +124,37 @@ class WebSocketProvider {
                 }
             }
 
-            // Schedule the timeout work item
             DispatchQueue.global(qos: .default).asyncAfter(deadline: .now() + timeout, execute: timeoutWorkItem)
 
-            // Receive WebSocket message
             self.ws?.receive { result in
                 if isContinuationResumed {
-                    return // Prevent double resume
+                    return
                 }
 
-                timeoutWorkItem.cancel() // Cancel timeout
+                timeoutWorkItem.cancel()
 
                 switch result {
                 case .failure(let error):
                     isContinuationResumed = true
                     continuation.resume(throwing: error)
-
+                    
                 case .success(let message):
-                    do {
-                        let wsMessage: WSMessage
-                        switch message {
-                        case .data(let data):
-                            wsMessage = try WSMessage.fromData(data)
-                        case .string(let text):
-                            guard let data = text.data(using: .utf8) else {
-                                throw WebSocketError.invalidMessageFormat
-                            }
-                            wsMessage = try WSMessage.fromData(data)
-                        @unknown default:
-                            throw WebSocketError.unknownMessageType
-                        }
-
-                        // Check message type
-                        if wsMessage.type == messageType {
+                    if case .data(let data) = message {
+                        if T.self == Data.self {
                             isContinuationResumed = true
-                            continuation.resume(returning: wsMessage)
+                            continuation.resume(returning: data as! T)
                         } else {
-                            throw WebSocketError.unexpectedMessageType
+                            continuation.resume(throwing: WebSocketError.invalidData("Expected Data"))
                         }
-                    } catch {
-                        isContinuationResumed = true
-                        continuation.resume(throwing: error)
+                    } else if case .string(let text) = message {
+                        if T.self == String.self {
+                            isContinuationResumed = true
+                            continuation.resume(returning: text as! T)
+                        } else {
+                            continuation.resume(throwing: WebSocketError.invalidData("Expected String"))
+                        }
+                    } else {
+                        continuation.resume(throwing: WebSocketError.unexpectedMessageType)
                     }
                 }
             }

@@ -2,6 +2,9 @@
 //  QRDeviceRegisterView.swift
 //  im-hybrid-demo
 //
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
+//
 
 import SwiftUI
 import CryptoKit
@@ -11,9 +14,7 @@ struct QRDevicesRegisterView: View {
     @State private var qrIsScanning = true
     
     private var bleManager: BluetoothManager = BluetoothManager()
-    
-    @State private var ws: WebSocketProvider?
-    
+        
     @State private var isConnected: Bool = false
     @State private var statusMessage: String?
     
@@ -61,25 +62,49 @@ struct QRDevicesRegisterView: View {
                     
                     stopQR()
                     
+                    var webSocket: WebSocketProvider? = nil
+
+                    
                     if qrresult.starts(with: "FIDO:/") {
                         Task {
-                            // Hybrid flow [TODO]
-                            let challengeinst = try DecodeCabLEChallenge(qrresult)
-                            let advertisingData = try GenerateAdvertisingData(challengeinst)
+                            do {
+                                // Hybrid flow [TODO]
+                                let selectedDomain = CableDomain.d0269_dljqskoal33ac
+                                let challengeinst = try DecodeCabLEChallenge(qrresult)
+                                let advertisingData = try GenerateAdvertisingData(hybridChallenge: challengeinst, tunnelId: selectedDomain)
+                                print("Scanned code: \(advertisingData.serviceData.encodeToHex()) \(advertisingData.serviceData.count)")
+                                
+                                let wsUrl = try GenerateHybridTunnelUrl(hybridChallenge: challengeinst, routingId: advertisingData.routingId, selectedDomain: selectedDomain)
+                                print("WS URL: \(wsUrl)")
+                                setPopupMessage("Establishing connection...")
+                                showPopup = true
+                                webSocket = try await WebSocketProvider(url: wsUrl)
+                                
+                                
+                                self.bleManager.stopAdvertising()
+                                self.bleManager.startAdvertising(advertisingData.serviceData)
+                                
+                                // Initiate the hybrid tunnel
+                                let psk = HybridHDKFDerive(inputKey: Data(challengeinst.secret), purpose: .keyPurposePSK, outputByteCount: 32)
+                                
+                                
+                            } catch {
+                                print("Error: \(error)")
+                                displayError = error
+                                dismiss()
+                            }
                             
-                            
-                            self.bleManager.stopAdvertising()
-                            self.bleManager.startAdvertising(advertisingData)
                         }
   
                     } else {
                         print("Scanned code: \(qrresult)")
                                                                 
                         Task {
-                            var webSocket: WebSocketProvider? = nil
                             do {
                                 showPopup = true
                                 webSocket = try await WebSocketProvider(url: ApplicationConfig.wssUrl + "/channel/\(qrresult)")
+                                try await webSocket!.initWebSessionChannel()
+                                
                                 setPopupMessage("Connected. Establishing session...")
 
                                 // Generate session ECDH KEX, for educational purposes only

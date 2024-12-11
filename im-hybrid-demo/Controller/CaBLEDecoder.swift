@@ -2,6 +2,9 @@
 //  CaBLEDecoder.swift
 //  im-hybrid-demo
 //
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
+//
 
 import Foundation
 import SwiftCBOR
@@ -36,6 +39,7 @@ enum HybridModes: String {
     case MakeCredential = "mc"
     case CredentialPresentation = "dcp"
     case CredentialIssuance = "dci"
+    case NonStandardToken = "nst"
 }
 
 struct HybridChallenge {
@@ -75,7 +79,10 @@ func DecodeChallengeBytesToStruct(_ challengeBytes: [UInt8]) throws -> HybridCha
             throw CaBLEError.badRequest
         }
         
-        if mode != .MakeCredential {
+        
+        // To avoid collisions with FIDO
+        // But this can be anything
+        if mode != .NonStandardToken {
             throw CaBLEError.wrongFidoMode
         }
         
@@ -142,38 +149,77 @@ func DecodeCabLEChallenge(_ qrChallenge: String) throws -> HybridChallenge {
     }
 }
 
-enum HybridKeyPurposes: UInt8 {
+enum HybridKeyPurposes: UInt32 {
     case keyPurposeEIDKey = 0x01
     case keyPurposeTunnelID = 0x02
     case keyPurposePSK = 0x03
 }
 
-func GenerateAdvertisingData(_ hybridChallenge: HybridChallenge) throws -> [UInt8] {
-    let secretSymkey = SymmetricKey(data: hybridChallenge.secret)
-    let eidKey: SymmetricKey = HKDF<SHA256>.deriveKey(
+func HybridHDKFDerive(inputKey: Data, purpose: HybridKeyPurposes, outputByteCount: Int) -> Data {
+    let secretSymkey = SymmetricKey(data: inputKey)
+    let derived: SymmetricKey = HKDF<SHA256>.deriveKey(
         inputKeyMaterial: secretSymkey,
         salt: Data(),
-        info: Data([HybridKeyPurposes.keyPurposeEIDKey.rawValue]),
-        outputByteCount: 64
+        info: purpose.rawValue.dataLE,
+        outputByteCount: outputByteCount
     )
-    let rawEidKey = eidKey.withUnsafeBytes { Data(Array($0)) }
     
+    return derived.withUnsafeBytes { Data(Array($0)) }
+}
+
+func GenerateHybridTunnelUrl(hybridChallenge: HybridChallenge, routingId: Data, selectedDomain: CableDomain) throws -> String {
+    let tunnelId = HybridHDKFDerive(inputKey: Data(hybridChallenge.secret), purpose: .keyPurposeTunnelID, outputByteCount: 16)
+    return "wss://\(selectedDomain.domain)/cable/connect/\(routingId.encodeToHex())/\(tunnelId.encodeToHex())"
+}
+
+
+struct AdvertisingData {
+    let connectionNonce: Data
+    let routingId: Data
+    let serviceData: Data
+}
+
+func GenerateAdvertisingData(hybridChallenge: HybridChallenge, tunnelId: CableDomain) throws -> AdvertisingData {
+    let rawEidKey = HybridHDKFDerive(inputKey: Data(hybridChallenge.secret), purpose: .keyPurposeEIDKey, outputByteCount: 64)
+    let encryptionKey = rawEidKey.prefix(32)
+    let macKey = rawEidKey.dropFirst(32)
+        
     do {
         // Generate payload
-
         let connectionNonce = try generateRandomBytes(10)
         let routingId = try generateRandomBytes(3)
-        let tunnelId: UInt16 = 1
         
-        let payload: [UInt8] = [0x00] + connectionNonce + routingId + [UInt8(tunnelId & 0xff), UInt8(tunnelId >> 8)]
+        let payload: [UInt8] = [0x00] + connectionNonce + routingId + tunnelId.uint16DataLE
         
-        let encrypted = try encryptBlock(data: Data(payload), key: Data(rawEidKey[..<32]))
+        let encrypted = try encryptBlock(data: Data(payload), key: encryptionKey)
         
-        let mac = HMAC<SHA256>.authenticationCode(for: encrypted, using: SymmetricKey(data: Data(rawEidKey.dropFirst(32))))
+        let mac = HMAC<SHA256>.authenticationCode(for: encrypted, using: SymmetricKey(data: macKey))
         let macRaw = mac.withUnsafeBytes { Array($0) }
+        let advertisignRawData = encrypted + macRaw[0..<4]
         
-        return Array(encrypted) + macRaw[0...4]
+        return AdvertisingData(connectionNonce: connectionNonce, routingId: routingId, serviceData: advertisignRawData)
     } catch {
         throw error
+    }
+}
+
+enum CableDomain: Int {
+    case d0000_ua5v = 0x00
+    case d0001_auth = 0x01
+    case d0269_dljqskoal33ac = 0x010d
+
+    var domain: String {
+        switch self {
+        case .d0000_ua5v:
+            return "cable.ua5v.com"
+        case .d0001_auth:
+            return "cable.auth.com"
+        case .d0269_dljqskoal33ac:
+            return "cable.dljqskoal33ac.org"
+        }
+    }
+    
+    var uint16DataLE: Data {
+        return Data([UInt8(self.rawValue & 0xff), UInt8(self.rawValue >> 8)])
     }
 }

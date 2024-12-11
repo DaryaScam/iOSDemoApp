@@ -2,6 +2,9 @@
 //  Utilities.swift
 //  im-hybrid-demo
 //
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
+//
 
 import Foundation
 import SwiftCBOR
@@ -22,7 +25,6 @@ func decodeCborToMap<Key: RawRepresentable>(
     // Decode the CBOR bytes
     
     let tryDecodedCbor = try? CBOR.decode(bytes)
-    print(tryDecodedCbor)
     guard let decodedCbor = try? CBOR.decode(bytes),
           case let CBOR.map(map) = decodedCbor else {
         throw DecodingError.invalidData("Decoded data is not a CBOR map.")

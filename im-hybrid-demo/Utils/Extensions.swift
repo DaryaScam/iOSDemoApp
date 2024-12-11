@@ -2,9 +2,23 @@
 //  Extensions.swift
 //  im-hybrid-demo
 //
-//  Created by Personal on 28/11/2024.
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
 //
+
 import Foundation
+
+extension UInt32 {
+    var dataLE: Data {
+        var int = self.littleEndian
+        return Data(bytes: &int, count: MemoryLayout.size(ofValue: int))
+    }
+    
+    var dataBE: Data {
+        var int = self.bigEndian
+        return Data(bytes: &int, count: MemoryLayout.size(ofValue: int))
+    }
+}
 
 extension Data {
     func encodeToBase64Url() -> String {

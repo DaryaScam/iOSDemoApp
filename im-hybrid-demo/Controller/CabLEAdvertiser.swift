@@ -2,6 +2,9 @@
 //  CabLEAdvertiser.swift
 //  im-hybrid-demo
 //
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
+//
 
 import SwiftUI
 import CoreBluetooth
@@ -55,14 +58,14 @@ class BluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralManagerD
         }
     }
     
-    func startAdvertising(_ serviceData: [UInt8]) {
+    func startAdvertising(_ serviceData: Data) {
         guard peripheralManager.state == .poweredOn else {
             print("Peripheral manager is not powered on. State: \(peripheralManager.state)")
             return
         }
                 
         // Hack to advertise iOS service data
-        let iOSServiceDataHack = Data([0xf1, 0xd0, 0x00]) + Data(serviceData)
+        let iOSServiceDataHack = Data([0xf1, 0xd0, 0xc7, 0xa4]) + serviceData
         let restOfData = iOSServiceDataHack.dropFirst(16)
     
 
