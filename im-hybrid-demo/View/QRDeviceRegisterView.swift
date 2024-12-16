@@ -62,12 +62,13 @@ struct QRDevicesRegisterView: View {
                     
                     stopQR()
                     
-                    var webSocket: WebSocketProvider? = nil
 
                     
                     if qrresult.starts(with: "FIDO:/") {
                         Task {
                             do {
+                                var webSocket: WebSocketProvider? = nil
+
                                 // Hybrid flow [TODO]
                                 let selectedDomain = CableDomain.d0269_dljqskoal33ac
                                 let challengeinst = try DecodeCabLEChallenge(qrresult)
@@ -87,7 +88,11 @@ struct QRDevicesRegisterView: View {
                                 // Initiate the hybrid tunnel
                                 let psk = HybridHDKFDerive(inputKey: Data(challengeinst.secret), purpose: .keyPurposePSK, outputByteCount: 32)
                                 
+                                let initMsg: Data = try await webSocket!.awaitForRawMessage(timeout: 1000)
+                                                            
+                                let cable = CableV2()
                                 
+                                let decResponse = try cable.decryptInitConnectMessage(psk: psk, qrKeyX962: decompressESPublicKey(Data(challengeinst.publicKey)), initMsg: initMsg)
                             } catch {
                                 print("Error: \(error)")
                                 displayError = error
@@ -98,9 +103,11 @@ struct QRDevicesRegisterView: View {
   
                     } else {
                         print("Scanned code: \(qrresult)")
-                                                                
+                        var webSocket: WebSocketProvider? = nil
+
                         Task {
                             do {
+
                                 showPopup = true
                                 webSocket = try await WebSocketProvider(url: ApplicationConfig.wssUrl + "/channel/\(qrresult)")
                                 try await webSocket!.initWebSessionChannel()

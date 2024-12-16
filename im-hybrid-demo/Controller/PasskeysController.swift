@@ -21,6 +21,9 @@ struct PasskeyObject: Codable {
     let counter: UInt32
     let timestamp: Date
     let aaguid: UUID
+    var prfSupported: Bool
+    var prfFirst: Data?
+    var prfSecond: Data?
     
     init(id: String, publicKey: [UInt8], counter: UInt32, aaguid: UUID) {
         self.id = id
@@ -28,6 +31,15 @@ struct PasskeyObject: Codable {
         self.counter = counter
         self.timestamp = Date()
         self.aaguid = aaguid
+        self.prfFirst = nil
+        self.prfSecond = nil
+        self.prfSupported = false
+    }
+    
+    mutating func setSalts(first: Data?, second: Data?) {
+        self.prfSupported = true
+        self.prfFirst = first
+        self.prfSecond = second
     }
 }
 
@@ -45,6 +57,7 @@ func decodeAttestationResult(_ credential: ASAuthorizationPlatformPublicKeyCrede
             throw PasskeyError.missingAuthData
         }
         
+        print(Data(attObject[CtapClientAttKeys.authData] as! [UInt8]).encodeToHex())
         let authData = try AuthData(attObject[CtapClientAttKeys.authData] as! [UInt8])
         let publicKey = try authData.getX962PublicKey()
         
@@ -105,14 +118,27 @@ class PasskeysController: NSObject, ASAuthorizationControllerPresentationContext
         authController.performAutoFillAssistedRequests()
     }
     
-    func createPasskey(userName: String, challenge: Data, userID: Data, anchor: ASPresentationAnchor, completion: @escaping (Result<PasskeyObject, Error>) -> Void) {
+    func createPasskey(userName: String, challenge: Data, userID: Data, prfSalt: Data?, anchor: ASPresentationAnchor, completion: @escaping (Result<PasskeyObject, Error>) -> Void) {
         self.createPasskeyResult = completion
         self.authenticationAnchor = anchor
         let publicKeyCredentialProvider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: ApplicationConfig.rpId)
 
 
         let registrationRequest = publicKeyCredentialProvider.createCredentialRegistrationRequest(challenge: challenge, name: userName, userID: userID)
+        
+        
+        if #available(iOS 18.0, *) {
+            if prfSalt != nil {
+                let prfInput = ASAuthorizationPublicKeyCredentialPRFRegistrationInput.self.InputValues(saltInput1: prfSalt!)
+                registrationRequest.prf = ASAuthorizationPublicKeyCredentialPRFRegistrationInput.inputValues(prfInput)
 
+                print("entra prf")
+            }
+    
+          
+
+        }
+        
         // Use only ASAuthorizationPlatformPublicKeyCredentialRegistrationRequests or
         // ASAuthorizationSecurityKeyPublicKeyCredentialRegistrationRequests here.
         let authController = ASAuthorizationController(authorizationRequests: [ registrationRequest ] )
@@ -125,8 +151,16 @@ class PasskeysController: NSObject, ASAuthorizationControllerPresentationContext
         let logger = Logger()
         switch authorization.credential {
         case let credentialRegistration as ASAuthorizationPlatformPublicKeyCredentialRegistration:
-            logger.log("A new passkey was registered: \(credentialRegistration)")
+            if #available(iOS 18.0, *) {
+                
+                let prf = credentialRegistration.prf
+                print("PRF isSupported: \(prf?.isSupported)")
+                print("PRF salt1: \(prf?.first)")
+                print("PRF salt2: \(prf?.second)")
+            }
             
+            print("A new passkey was registered: \(credentialRegistration)")
+
             do {
                 let decodedAttResp = try decodeAttestationResult(credentialRegistration)
                 if let decodedAttResp = decodedAttResp {

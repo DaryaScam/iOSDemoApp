@@ -84,7 +84,7 @@ struct ManagePasskeys: View {
                         let challenge = try generateRandomBytes(32)
                                             
                         if anchor != nil {
-                            passkeyscontroller.createPasskey(userName: user.name!, challenge: Data(challenge), userID: user.uuid!.getData(), anchor: getAnchor()!) {
+                            passkeyscontroller.createPasskey(userName: user.name!, challenge: Data(challenge), userID: user.uuid!.getData(), prfSalt: try generateRandomBytes(16), anchor: getAnchor()!) {
                                 result in
                                 switch result {
                                 case .success:

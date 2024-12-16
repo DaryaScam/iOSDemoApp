@@ -6,7 +6,7 @@
 //  As a part of DaryaScam Project <https://daryascam.info>
 //
 
-import Foundation
+@preconcurrency import Foundation
 
 enum WebSocketError: Error {
     case invalidURL
@@ -65,7 +65,7 @@ class WebSocketProvider {
     }
     
     func initWebSessionChannel() async throws {
-        if self.channelStatus == .hybridTunnelReady {
+        if self.channelStatus == .channelReady {
             throw WebSocketError.alreadyInitialized
         }
         

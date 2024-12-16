@@ -100,7 +100,7 @@ func blockEncryptThenMac(data: Data, key: Data) throws -> Data {
 
 func generateEcdhKeyPair() -> (publicKey: Data, privateKey: P256.KeyAgreement.PrivateKey) {
     let privateKey = P256.KeyAgreement.PrivateKey()
-    let publicKey = Data([0x04]) + privateKey.publicKey.rawRepresentation
+    let publicKey = privateKey.publicKey.x963Representation
     
     return (publicKey, privateKey)
 }
@@ -131,3 +131,7 @@ func encryptAesGcm(data: Data, key: SymmetricKey) throws -> Data {
     return sealedBox.combined!
 }
 
+
+func decompressESPublicKey(_ publicKey: Data) throws -> Data {
+    return try P256.Signing.PublicKey(compressedRepresentation: publicKey).x963Representation
+}
