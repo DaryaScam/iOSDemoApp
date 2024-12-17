@@ -15,8 +15,6 @@ enum SettingMenus: String {
     case about = "About"
 }
 
-
-
 var navigationLinks: [SettingMenus] = [.devices, .about]
 
 struct ContentView: View {

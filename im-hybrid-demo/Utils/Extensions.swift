@@ -61,7 +61,7 @@ extension String {
     }
     
     func isValidHex() -> Bool {
-        let regex = #"^0x[0-9a-fA-F]*$"#
+        let regex = #"^[0-9a-fA-F]*$"#
         return self.range(of: regex, options: .regularExpression) != nil
     }
         
@@ -95,16 +95,16 @@ extension String {
     
     
     func decodeHex() throws -> [UInt8] {
-        guard self.isValidHex() else {
-            throw StringDecoderError.invalidHex
-        }
-    
         var hexString = self
-        
-        // Remove "0x" prefix if present
+
         if hexString.hasPrefix("0x") {
             hexString = String(hexString.dropFirst(2))
         }
+        
+        guard hexString.isValidHex() else {
+            throw StringDecoderError.invalidHex
+        }
+    
         
         // Ensure the hex string has an even number of characters
         guard hexString.count % 2 == 0 else {

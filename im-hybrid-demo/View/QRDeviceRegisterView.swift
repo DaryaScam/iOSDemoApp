@@ -94,12 +94,44 @@ struct QRDevicesRegisterView: View {
                                 
                                 let decResponse = try cable.decryptHandshake(psk: psk, qrKeyX962: decompressESPublicKey(Data(challengeinst.publicKey)), initMsg: initMsg)
                                 let ackResult = try cable.generateHandshakeAck(peerESKey: decResponse.peerESKey.privateKey, reqESX962: decResponse.reqESX962)
-                                
-                                let clientToPlatformKey = ackResult.trafficKeys.o1
-                                let platformToClientKey = ackResult.trafficKeys.o2
                                     
                                 try await webSocket!.send(data: ackResult.handhshakeAck)
-                                let p1: Data = try await webSocket!.awaitForRawMessage(timeout: 1000)
+                                let encHello: Data = try await webSocket!.awaitForRawMessage(timeout: 1000)
+                                
+                                let appHelloDec = try cable.decryptFromClient(ciphertext: encHello)
+                                let appHello = try JSONDecoder().decode(AuthTokenRequestInit.self, from: appHelloDec)
+                                
+                                print("App Hello: \(appHello)")
+                                if try appHello.handshakeHashHex.hexDecodedData() != ackResult.handshakeHash {
+                                    throw CableV2Error.failedToDecrypt("Handshake hash does not match")
+                                }
+                                
+                                
+                                // Get user consent
+                                setPopupMessage("Do you want login with desktop app at \(appHello.os)?")
+                                showConsentButtons()
+                                let userConsented = try await consentManager.waitForUserConsent()
+                                hideConsentButtons()
+                                if !userConsented {
+                                    throw PasskeyError.userConsentDenied("User denied consent")
+                                }
+                                
+                                // Generate access token and send result
+                                
+                                let newToken = try generateRandomBytes(16)
+                                let result: AuthTokenResult = AuthTokenResult(token: newToken.hex)
+                                
+                                let resultData = try JSONEncoder().encode(result)
+                                let accessTokenData = try cable.encryptForPlatform(plaintext: resultData)
+                                try await webSocket!.send(data: accessTokenData)
+
+                                try cdp.newSession(deviceName: "Desktop: \(appHello.os)", accessToken: Data(newToken).base64EncodedString())
+                                
+                                setPopupMessage("Successfully registered new device!")
+                                
+                                dismiss()
+                                
+                                print("KEX Completed")
                                 
                                 
                             } catch {

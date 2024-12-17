@@ -17,7 +17,12 @@ enum CableV2Error: Error {
     case unsupportedProtocolName
     case failedToDecrypt(String)
     case badInitMessage(String)
+    case notReady(String)
+    case tooLong(String)
 }
+
+let paddingGranularity = 32;
+let mib = 1024 * 1024;
 
 class CableV2 {
     private var ns: Noise? = nil
@@ -81,6 +86,64 @@ class CableV2 {
         return (handhshakeAck: peerESKey.publicKey.x963Representation + ciphertext, handshakeHash: self.ns!.handshakeHash)
     }
     
-    func encryptToPlatform(data: Data) throws -> Data {
+    // Traffic encryption
+    
+    func getAEADNonce(counter: UInt32) -> Data {
+        var nonce = Data(repeating: 0, count: 12) // 12-byte nonce initialized to zeros
+        let bigEndianNonce = withUnsafeBytes(of: counter.bigEndian) { Data($0) }
+        nonce.replaceSubrange(0..<4, with: bigEndianNonce.prefix(4))
+        
+        return nonce
+    }
+    
+    func encryptForPlatform(plaintext: Data) throws -> Data {
+        if self.clientToPlatformKey == nil {
+            throw CableV2Error.notReady("Client to platform key not initialized")
+        }
+        
+        if plaintext.count > mib {
+            throw CableV2Error.tooLong("Data is too long")
+        }
+        
+        let nonce = getAEADNonce(counter: self.clientToPlatformSEQ)
+        self.clientToPlatformSEQ += 1
+        
+        
+        let extraBytes = paddingGranularity - (plaintext.count % paddingGranularity)
+        var paddingBytes = Data(repeating: 0, count: extraBytes)
+        paddingBytes[extraBytes - 1] = UInt8(extraBytes - 1)
+        
+        let paddedPlaintext = plaintext + paddingBytes
+
+        let cipher = try! AES.GCM.seal(paddedPlaintext, using: SymmetricKey(data: self.clientToPlatformKey!), nonce: AES.GCM.Nonce(data: nonce), authenticating: Data())
+        let ciphertext = cipher.ciphertext + cipher.tag
+
+        return ciphertext
+    }
+    
+    func decryptFromClient(ciphertext: Data) throws -> Data {
+        if self.platformToClientKey == nil {
+            throw CableV2Error.notReady("Platform to client key not initialized")
+        }
+        
+        let nonce = getAEADNonce(counter: self.platformToClientSEQ)
+        self.platformToClientSEQ += 1
+        
+        let tag = ciphertext.suffix(16)
+        let encryptedData = ciphertext.prefix(ciphertext.count - 16)
+        
+        do {
+            let sealedBox = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: nonce), ciphertext: encryptedData, tag: tag)
+            let rawPlaintext = try AES.GCM.open(sealedBox, using: SymmetricKey(data: self.platformToClientKey!), authenticating: Data())
+            
+            let paddingLength = Int(rawPlaintext[rawPlaintext.count - 1])
+            if paddingLength + 1 > rawPlaintext.count {
+                throw CableV2Error.failedToDecrypt("Failed to decrypt")
+            }
+            
+            return rawPlaintext.prefix(rawPlaintext.count - paddingLength - 1)
+        } catch {
+            throw CableV2Error.failedToDecrypt("Failed to decrypt. " + error.localizedDescription)
+        }
     }
 }

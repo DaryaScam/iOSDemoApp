@@ -10,7 +10,6 @@
 import AuthenticationServices
 import Foundation
 import os
-import SwiftCBOR
 
 // Truthfully stolen from https://docs-assets.developer.apple.com/published/0dc46a3bfa/ConnectingToAServiceWithPasskeys.zip
 // https://web.daryascam.info/.well-known/apple-app-site-association

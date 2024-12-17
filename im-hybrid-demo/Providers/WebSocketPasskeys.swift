@@ -47,7 +47,6 @@ struct PasskeyAck: Codable {
     let encryptedAccessToken: String
 }
 
-
 enum PasskeyError: Error {
     case invalidChallenge(String)
     case invalidOrigin(String)
