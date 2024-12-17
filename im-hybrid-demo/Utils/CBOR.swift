@@ -2,9 +2,9 @@
 //  CBOR.swift
 //  im-hybrid-demo
 //
-//  Created by Personal on 17/12/2024.
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
 //
-
 
 import SwiftCBOR
 

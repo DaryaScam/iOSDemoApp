@@ -6,7 +6,6 @@
 //  As a part of DaryaScam Project <https://daryascam.info>
 //
 
-
 import AuthenticationServices
 import Foundation
 import os
