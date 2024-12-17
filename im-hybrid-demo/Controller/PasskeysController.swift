@@ -27,7 +27,7 @@ struct PasskeyObject: Codable {
     
     init(id: String, publicKey: [UInt8], counter: UInt32, aaguid: UUID) {
         self.id = id
-        self.publicKey = Data(publicKey).encodeToBase64Url()
+        self.publicKey = Data(publicKey).base64Url
         self.counter = counter
         self.timestamp = Date()
         self.aaguid = aaguid
@@ -46,8 +46,7 @@ struct PasskeyObject: Codable {
 func decodeAttestationResult(_ credential: ASAuthorizationPlatformPublicKeyCredentialRegistration) throws -> PasskeyObject? {
     do {
         // Extract data
-        let id = credential.credentialID.encodeToBase64Url()
-        
+        let id = credential.credentialID.base64Url
         // Check origin, challenge, and rpid
         let clientDataJSON = try JSONDecoder().decode(ClientDataJSON.self, from: credential.rawClientDataJSON)
 
@@ -57,7 +56,6 @@ func decodeAttestationResult(_ credential: ASAuthorizationPlatformPublicKeyCrede
             throw PasskeyError.missingAuthData
         }
         
-        print(Data(attObject[CtapClientAttKeys.authData] as! [UInt8]).encodeToHex())
         let authData = try AuthData(attObject[CtapClientAttKeys.authData] as! [UInt8])
         let publicKey = try authData.getX962PublicKey()
         

@@ -73,7 +73,7 @@ struct QRDevicesRegisterView: View {
                                 let selectedDomain = CableDomain.d0269_dljqskoal33ac
                                 let challengeinst = try DecodeCabLEChallenge(qrresult)
                                 let advertisingData = try GenerateAdvertisingData(hybridChallenge: challengeinst, tunnelId: selectedDomain)
-                                print("Scanned code: \(advertisingData.serviceData.encodeToHex()) \(advertisingData.serviceData.count)")
+                                print("Scanned code: \(advertisingData.serviceData.hex) \(advertisingData.serviceData.count)")
                                 
                                 let wsUrl = try GenerateHybridTunnelUrl(hybridChallenge: challengeinst, routingId: advertisingData.routingId, selectedDomain: selectedDomain)
                                 print("WS URL: \(wsUrl)")
@@ -92,7 +92,16 @@ struct QRDevicesRegisterView: View {
                                                             
                                 let cable = CableV2()
                                 
-                                let decResponse = try cable.decryptInitConnectMessage(psk: psk, qrKeyX962: decompressESPublicKey(Data(challengeinst.publicKey)), initMsg: initMsg)
+                                let decResponse = try cable.decryptHandshake(psk: psk, qrKeyX962: decompressESPublicKey(Data(challengeinst.publicKey)), initMsg: initMsg)
+                                let ackResult = try cable.generateHandshakeAck(peerESKey: decResponse.peerESKey.privateKey, reqESX962: decResponse.reqESX962)
+                                
+                                let clientToPlatformKey = ackResult.trafficKeys.o1
+                                let platformToClientKey = ackResult.trafficKeys.o2
+                                    
+                                try await webSocket!.send(data: ackResult.handhshakeAck)
+                                let p1: Data = try await webSocket!.awaitForRawMessage(timeout: 1000)
+                                
+                                
                             } catch {
                                 print("Error: \(error)")
                                 displayError = error
@@ -137,10 +146,10 @@ struct QRDevicesRegisterView: View {
                                  */
                                 let allowList = [try cdp.getFirstActivePasskey()!.cred_id!]
                                 let authChallenge = PasskeyAuthInitChallenge(
-                                    challenge: try generateRandomBytes(32).encodeToBase64Url(),
+                                    challenge: try generateRandomBytes(32).base64Url,
                                     allowCredIds: allowList,
                                     rpId: ApplicationConfig.rpId,
-                                    kexM: kexM.publicKey.encodeToBase64Url()
+                                    kexM: kexM.publicKey.base64Url
                                 )
                                 
                                 let authChallengeData = try JSONEncoder().encode(authChallenge)
@@ -188,7 +197,7 @@ struct QRDevicesRegisterView: View {
                                                                                                                                 
                                 let newToken = try generateRandomBytes(16)
                                 let encryptedToken = try encryptAesGcm(data: newToken, key: sessionSecret)
-                                let ackMessage = PasskeyAck(encryptedAccessToken: encryptedToken.encodeToBase64Url())
+                                let ackMessage = PasskeyAck(encryptedAccessToken: encryptedToken.base64Url)
                                 
                                 let ackMessageData = try JSONEncoder().encode(ackMessage)
                                 let ackMessageWrapper = WSMessage(type: .message, data: String(data: ackMessageData, encoding: .utf8))

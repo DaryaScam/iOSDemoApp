@@ -7,6 +7,8 @@
 //
 
 import Foundation
+import CryptoKit
+import SwiftCBOR
 
 extension UInt32 {
     var dataLE: Data {
@@ -20,15 +22,21 @@ extension UInt32 {
     }
 }
 
+extension SharedSecret {
+    var data: Data {
+        return self.withUnsafeBytes { Data($0) }
+    }
+}
+
 extension Data {
-    func encodeToBase64Url() -> String {
+    var base64Url: String {
         return self.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
             .replacingOccurrences(of: "=", with: "") // Remove padding
     }
     
-    func encodeToHex() -> String {
+    var hex: String {
         return self.map { String(format: "%02x", $0) }.joined()
     }
 }
@@ -122,5 +130,35 @@ extension String {
     func hexDecodedData() throws -> Data {
         let bytes = try self.decodeHex()
         return Data(bytes)
+    }
+}
+
+extension CBOR {
+    func asUInt64() -> UInt64? {
+        if case let CBOR.unsignedInt(value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    func asByteString() -> [UInt8]? {
+        if case let CBOR.byteString(value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    func asString() -> String? {
+        if case let CBOR.utf8String(value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    func asBool() -> Bool? {
+        if case let CBOR.boolean(value) = self {
+            return value
+        }
+        return nil
     }
 }

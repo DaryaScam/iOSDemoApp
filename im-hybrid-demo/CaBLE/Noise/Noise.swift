@@ -2,7 +2,11 @@
 //  Noise.swift
 //  im-hybrid-demo
 //
-//  Created by Personal on 15/12/2024.
+//  Created by Yuriy Ackermann <ackermann.yuriy@gmail.com> <@yackermann>
+//  As a part of DaryaScam Project <https://daryascam.info>
+//
+//  Based on Noise Protocol Framework <https://noiseprotocol.org>
+//  Reference source code used is Chromium's Noise Protocol Implementation <https://github.com/chromium/chromium/blob/3ea88b4b3ad399f0fa45c96894eb70dbc5477b10/device/fido/cable/noise.cc>
 //
 
 import Foundation
@@ -127,6 +131,10 @@ class Noise {
         nonce.replaceSubrange(0..<4, with: bigEndianNonce.prefix(4))
         
         return nonce
+    }
+    
+    var handshakeHash: Data {
+        return self.h
     }
 }
 

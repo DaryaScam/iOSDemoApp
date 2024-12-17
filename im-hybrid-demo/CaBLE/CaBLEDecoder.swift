@@ -169,7 +169,7 @@ func HybridHDKFDerive(inputKey: Data, purpose: HybridKeyPurposes, outputByteCoun
 
 func GenerateHybridTunnelUrl(hybridChallenge: HybridChallenge, routingId: Data, selectedDomain: CableDomain) throws -> String {
     let tunnelId = HybridHDKFDerive(inputKey: Data(hybridChallenge.secret), purpose: .keyPurposeTunnelID, outputByteCount: 16)
-    return "wss://\(selectedDomain.domain)/cable/connect/\(routingId.encodeToHex())/\(tunnelId.encodeToHex())"
+    return "wss://\(selectedDomain.domain)/cable/connect/\(routingId.hex)/\(tunnelId.hex)"
 }
 
 

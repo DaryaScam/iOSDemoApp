@@ -135,3 +135,4 @@ func encryptAesGcm(data: Data, key: SymmetricKey) throws -> Data {
 func decompressESPublicKey(_ publicKey: Data) throws -> Data {
     return try P256.Signing.PublicKey(compressedRepresentation: publicKey).x963Representation
 }
+
